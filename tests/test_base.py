@@ -1,5 +1,5 @@
-from project_name.base import NAME
+from owkin_mm_dream.base import NAME
 
 
 def test_base():
-    assert NAME == "project_name"
+    assert NAME == "owkin_mm_dream"
