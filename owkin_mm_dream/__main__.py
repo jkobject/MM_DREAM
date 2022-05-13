@@ -1,6 +1,6 @@
+import sys
+from . import main
+
 """Entry point for owkin_mm_dream."""
-
-from .cli import main  # pragma: no cover
-
 if __name__ == "__main__":  # pragma: no cover
-    main()
+    main(sys.argv[0], *sys.argv[1])
