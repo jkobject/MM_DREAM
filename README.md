@@ -5,13 +5,19 @@
 
 Awesome Cancer recurrence prediction of Multiple Myeloma DREAM challenge v2 created by jkobject.
 
-## Install it from PyPI
+## Information
 
-```bash
-pip install owkin_mm_dream
-```
+This pipeline shows various simple ML models used to predict patient with Multiple Myeloma at high risk of relapse from transcriptomics profiles. 
+From a comprehensive litterature review I came up with a set of genes, genesets and clinical information to use as predictors.
 
-or in dev mode:
+3 Models are shown together with some metrics and used to define strengths and weaknesses of each.
+
+As always in science, there is not one definitive answer and depending on the goal one can decide to use any model's prediction.
+
+The default model selected for prediction is a logistic regression with elasticnet penalty an
+l1_ratio of 1.0 and a constraint term of 0.2
+
+## Install it
 
 ```bash
 git clone https://github.com/jkobject/owkin_MM_DREAM.git
@@ -19,29 +25,59 @@ cd owkin_MM_DREAM
 pip install -e .
 ```
 
+A dockerized version is also available
+
+```bash
+docker pull jkobject/mm_dream
+```
+
 ## Usage
+
+### showcase
 
 ```py
 #look at example.py !
 from owkin_mm_dream import main
 
-main(syn_login, syn_password)
+clf = main(syn_login, syn_password)
 ```
 
+or
+
 ```bash
-$ python -m owkin_mm_dream $syn_login $syn_password
+python -m owkin_mm_dream $syn_login $syn_password
 #or
-$ owkin_mm_dream $syn_login $syn_password
+owkin_mm_dream $syn_login $syn_password
 #or
-$ docker pull jkobject/mm_dream
-$ docker run -it jkobject/mm_dream "owkin_mm_dream $syn_login $syn_password"
+docker run -it jkobject/mm_dream $syn_login $syn_password
 ```
+
+### predict
+
+```py
+#look at example.py for more info!
+from owkin_mm_dream import main
+
+clf = main(syn_login, syn_password)
+res = clf.predict(X, Y)
+```
+
+or
+
+```bash
+python owkin_mm_dream $syn_login $syn_password $rna_path $clinical_path
+#or
+owkin_mm_dream $syn_login $syn_password $rna_path $clinical_path
+#or
+docker run -it jkobject/mm_dream $syn_login $syn_password $rna_path $clinical_path
+```
+
+the results will be in `new_predictions.csv`
 
 
 ## Development
 
 Read the [CONTRIBUTING.md](CONTRIBUTING.md) file.
-
 
 ## Structure
 
@@ -56,7 +92,6 @@ Lets take a look at the structure of this template:
 │   ├── release_message.sh   # A script to generate a release message
 │   └── workflows            # The CI pipeline for Github Actions
 ├── .gitignore               # A list of files to ignore when pushing to Github
-├── HISTORY.md               # Auto generated list of changes to the project
 ├── LICENSE                  # The license for the project
 ├── Makefile                 # A collection of utilities to manage the project
 ├── MANIFEST.in              # A list of files to include in a package

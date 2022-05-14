@@ -38,7 +38,7 @@ none
 - adding documentation
 - writing down next steps
 
-(4h)
+(3h)
 
 ## Plan
 

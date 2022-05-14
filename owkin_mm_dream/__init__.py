@@ -2,8 +2,7 @@ import pandas as pd
 import numpy as np
 from matplotlib import pyplot as plt
 import os
-
-from genepy.utils import helper as ghelp
+import io
 
 from sklearn import preprocessing
 from sklearn import svm
@@ -15,6 +14,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sksurv.nonparametric import kaplan_meier_estimator
 
 import synapseclient
+from biomart import BiomartServer
 
 CLINICAL_LABELS = {
     "D_OS": "survival_days",
@@ -45,7 +45,7 @@ DEFAULT_FEATURES = [
 ]
 
 
-def load_process_data(
+def load_data(
     syn_login,
     syn_password,
     rna_data="syn9744875",
@@ -86,7 +86,10 @@ def load_process_data(
     print(
         explanation_table.loc[set(clinical_data.columns) & set(explanation_table.index)]
     )
+    return rna_data, clinical_data
 
+
+def preprocess(rna_data, clinical_data):
     print("the rna data has {} samples".format(len(rna_data.columns)))
     # subsetting columns
     clinical_data = clinical_data.rename(
@@ -99,7 +102,7 @@ def load_process_data(
     unc_clinical_data = unc_clinical_data[~unc_clinical_data["stage"].isna()]
 
     # getting GENE symbols
-    gene_names = ghelp.generateGeneNames()
+    gene_names = generateGeneNames()
     gene_names = gene_names[gene_names.gene_biotype == "protein_coding"].set_index(
         "ensembl_gene_id"
     )
@@ -134,7 +137,7 @@ def make_dataset(rna_data, clinical_data, pathway_file=MM_PATHWAY):
 
     # removing duplicates and aassociating a single profile with a single patient
     rna_data.columns = ["_".join(i.split("_")[:2]) for i in rna_data.columns]
-    for val in ghelp.dups(rna_data.columns):
+    for val in dups(rna_data.columns):
         loc = rna_data[val].iloc[:, -1]
         rna_data.drop(val, axis=1, inplace=True)
         rna_data[val] = loc.values
@@ -164,7 +167,13 @@ def make_dataset(rna_data, clinical_data, pathway_file=MM_PATHWAY):
     return X
 
 
-def main(syn_login, syn_password, predict_on=DEFAULT_FEATURES, pathway_file=MM_PATHWAY):
+def main(
+    syn_login,
+    syn_password,
+    predict_on=DEFAULT_FEATURES,
+    pathway_file=MM_PATHWAY,
+    showcase=True,
+):
     """Main entry point for owkin_mm_dream.
 
     The main function executes on commands:
@@ -177,7 +186,9 @@ def main(syn_login, syn_password, predict_on=DEFAULT_FEATURES, pathway_file=MM_P
         pathway_file (str): Path to pathway file.
     """
 
-    rna_data, unc_clinical_data = load_process_data(syn_login, syn_password)
+    rna_data, clinical_data = load_data(syn_login, syn_password)
+
+    rna_data, unc_clinical_data = preprocess(rna_data, clinical_data)
 
     X = make_dataset(rna_data, unc_clinical_data, pathway_file)
 
@@ -192,6 +203,19 @@ def main(syn_login, syn_password, predict_on=DEFAULT_FEATURES, pathway_file=MM_P
     scaler = preprocessing.StandardScaler().fit(X[predict_on].values)
     X_scaled = scaler.transform(X[predict_on].values)
 
+    if showcase:
+        show_case(X_scaled, Y, predict_on=predict_on)
+
+    print("choosing logistic regression as best clf")
+
+    clf = LogisticRegression(
+        penalty="elasticnet", solver="saga", l1_ratio=1, max_iter=800, C=0.2
+    )
+    clf = clf.fit(X_scaled, Y)
+    return clf
+
+
+def show_case(X_scaled, Y, predict_on=DEFAULT_FEATURES):
     # finding the best predictors
     clf = LogisticRegression()
     clf = clf.fit(X_scaled, Y)
@@ -276,3 +300,91 @@ def show_metrics(
     print(prec, rec, f1)
     print("k-fold CV score:")
     print(cross_scores.mean())
+
+
+## copied from genepy
+
+
+def _fetchFromServer(ensemble_server, attributes):
+    server = BiomartServer(ensemble_server)
+    ensmbl = server.datasets["hsapiens_gene_ensembl"]
+    res = pd.read_csv(
+        io.StringIO(
+            ensmbl.search({"attributes": attributes}, header=1).content.decode()
+        ),
+        sep="\t",
+    )
+    return res
+
+
+def createFoldersFor(filepath):
+    """
+  will recursively create folders if needed until having all the folders required to save the file in this filepath
+  """
+    prevval = ""
+    for val in os.path.expanduser(filepath).split("/")[:-1]:
+        prevval += val + "/"
+        if not os.path.exists(prevval):
+            os.mkdir(prevval)
+
+
+def generateGeneNames(
+    ensemble_server="http://nov2020.archive.ensembl.org/biomart",
+    useCache=False,
+    cache_folder="/".join(__file__.split("/")[:-3]) + "/",
+    attributes=[],
+):
+    """generate a genelist dataframe from ensembl's biomart
+
+  Args:
+      ensemble_server ([type], optional): [description]. Defaults to ENSEMBL_SERVER_V.
+      useCache (bool, optional): [description]. Defaults to False.
+      cache_folder ([type], optional): [description]. Defaults to CACHE_PATH.
+
+  Raises:
+      ValueError: [description]
+
+  Returns:
+      [type]: [description]
+  """
+    attr = [
+        "ensembl_gene_id",
+        "clone_based_ensembl_gene",
+        "hgnc_symbol",
+        "gene_biotype",
+        "entrezgene_id",
+    ]
+    assert cache_folder[-1] == "/"
+
+    cache_folder = os.path.expanduser(cache_folder)
+    createFoldersFor(cache_folder)
+    cachefile = os.path.join(cache_folder, ".biomart.csv")
+    if useCache & os.path.isfile(cachefile):
+        print("fetching gene names from biomart cache")
+        res = pd.read_csv(cachefile)
+    else:
+        print("downloading gene names from biomart")
+        res = _fetchFromServer(ensemble_server, attr + attributes)
+        res.to_csv(cachefile, index=False)
+
+    res.columns = attr + attributes
+    if type(res) is not type(pd.DataFrame()):
+        raise ValueError("should be a dataframe")
+    res = res[~(res["clone_based_ensembl_gene"].isna() & res["hgnc_symbol"].isna())]
+    res.loc[res[res.hgnc_symbol.isna()].index, "hgnc_symbol"] = res[
+        res.hgnc_symbol.isna()
+    ]["clone_based_ensembl_gene"]
+
+    return res
+
+
+def dups(lst):
+    """
+        shows the duplicates in a list
+    """
+    seen = set()
+    # adds all elements it doesn't know yet to seen and all other to seen_twice
+    seen_twice = set(x for x in lst if x in seen or seen.add(x))
+    # turn the set into a list (as requested)
+    return list(seen_twice)
+
