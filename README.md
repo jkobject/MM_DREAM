@@ -12,9 +12,7 @@ From a comprehensive litterature review I came up with a set of genes, genesets 
 
 3 Models are shown together with some metrics and used to define strengths and weaknesses of each.
 
-As always in science, there is not one definitive answer and depending on the goal one can decide to use any model's prediction.
-
-The default model selected for prediction is a logistic regression with elasticnet penalty an l1_ratio of 1.0 and a constraint term of 0.2.
+The default model selected for prediction is a logistic regression with elasticnet penalty, an l1_ratio of 1.0 and a constraint term of 0.2.
 
 Information about the literature review, my work schedule and process during this 10h mini-project are available in `NOTEBOOK.md`
 
