@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from matplotlib import pyplot as plt
+import os
 
 from genepy.utils import helper as ghelp
 
@@ -15,16 +16,15 @@ from sksurv.nonparametric import kaplan_meier_estimator
 
 import synapseclient
 
-
 CLINICAL_LABELS = {
     "D_OS": "survival_days",
-    "D_OS_FLAG": "has_survived",
+    "D_OS_FLAG": "is_deceased",
     "D_PFS": "pfs_days",
     "D_PFS_FLAG": "has_progressed",
     "HR_FLAG": "to_pred",
 }
 CLINICAL_FEATURES = {"D_Age": "age", "D_Gender": "sex", "D_ISS": "stage"}
-MM_PATHWAY = "../data/mm_pathway.txt"
+MM_PATHWAY = os.path.dirname(os.path.abspath(__file__)) + "/../data/MMpathways.gmt"
 
 DEFAULT_FEATURES = [
     "age",
@@ -52,7 +52,19 @@ def load_process_data(
     clinical_data="syn9926878",
     explanation_table="syn9744732",
 ):
+    """Loads and processes the data.
+    
+    Args:
+        syn_login (str): Synapse login.
+        syn_password (str): Synapse password.
+        rna_data (str, optional): RNAseq data. Defaults to "syn9744875".
+        clinical_data (str, optional): Clinical data. Defaults to "syn9926878".
+        explanation_table (str, optional): Explanation table. Defaults to "syn9744732".
 
+    Returns:
+        rna_data (pandas.DataFrame): RNAseq data.
+        clinical_data (pandas.DataFrame): Clinical data.
+    """
     syn = synapseclient.Synapse()
     syn.login(syn_login, syn_password)
 
@@ -62,17 +74,18 @@ def load_process_data(
     # using hg19 gene annotation annotated with ENTREZ id + ERCC (likely ERCC92) which is the spike-in gene which are not present here
     rna_data = syn.get(entity=rna_data)
     explanation_table = syn.get(entity=explanation_table)
-    syn9926878 = syn.get(entity="syn9926878")
+    clinical_data = syn.get(entity=clinical_data)
 
     # loading the RNAseq data from Synapse
     rna_data = pd.read_csv(rna_data.path, sep="\t", index_col=0)
-    clinical_data = pd.read_csv(syn9926878.path, sep=",").set_index("Patient")
+    clinical_data = pd.read_csv(clinical_data.path, sep=",").set_index("Patient")
     explanation_table = pd.read_csv(explanation_table.path, sep=",", index_col=0)
 
     # showing the explanation_table of the data
-    explanation_table.loc[set(clinical_data.columns) & set(explanation_table.index)]
     print("\nhere is our clinical data: ")
-    print(explanation_table)
+    print(
+        explanation_table.loc[set(clinical_data.columns) & set(explanation_table.index)]
+    )
 
     print("the rna data has {} samples".format(len(rna_data.columns)))
     # subsetting columns
@@ -104,6 +117,16 @@ def load_process_data(
 
 
 def make_dataset(rna_data, clinical_data, pathway_file=MM_PATHWAY):
+    """Makes a dataset from the RNAseq data and clinical data.
+    
+    Args:
+        rna_data (pandas.DataFrame): RNAseq data.
+        clinical_data (pandas.DataFrame): Clinical data.
+        pathway_file (str, optional): Pathway file. Defaults to "../data/mm_pathway.txt".
+
+    Returns:
+        pandas.DataFrame: Dataset.
+    """
     # sorting to get the latest rnaseq available for a patient. By postulating that the number is equal to the timepoint at sampling
     col = list(rna_data.columns)
     col.sort()
@@ -138,23 +161,25 @@ def make_dataset(rna_data, clinical_data, pathway_file=MM_PATHWAY):
     print(list(pathways.keys()))
     for k, val in pathways.items():
         X[k] = X[set(val) & xcol].sum(axis=1)
+    return X
 
 
 def main(syn_login, syn_password, predict_on=DEFAULT_FEATURES, pathway_file=MM_PATHWAY):
     """Main entry point for owkin_mm_dream.
+
+    The main function executes on commands:
+    `python -m owkin_mm_dream` and `$ owkin_mm_dream `.
     
     Args:
         syn_login (str): Synapse login.
         syn_password (str): Synapse password.
         predict_on (list): List of features to predict on.
         pathway_file (str): Path to pathway file.
-
-    Returns:
     """
 
     rna_data, unc_clinical_data = load_process_data(syn_login, syn_password)
 
-    X = make_dataset(rna_data, unc_clinical_data)
+    X = make_dataset(rna_data, unc_clinical_data, pathway_file)
 
     # generating the output data
     Y = (
@@ -176,38 +201,66 @@ def main(syn_login, syn_password, predict_on=DEFAULT_FEATURES, pathway_file=MM_P
     print(best_pred)
 
     # showing a few models' predictions
-    print("")
+    print("\n\nKNeighborsClassifier:\n")
+    clf = KNeighborsClassifier(n_neighbors=15)
+    clf = clf.fit(X_scaled, Y)
+    show_metrics(clf, X_scaled, Y)
+    print(
+        "a KNN with 15 neigbhors shows a lower f1 score overall (CV=100) but a really good AUC. \
+However, this is likely due to overfitting."
+    )
+
+    print("_______________________________________\n\n")
+    print("svm:\n")
+    clf = svm.SVC(C=0.9)
+    clf = clf.fit(X_scaled, Y)
+    show_metrics(clf, X_scaled, Y)
+    print(
+        "\nSVM is able to get a very good precision and in medical applications, \
+this is often what we are looking for: FPs need to be as low as possible. \
+However, the kaplan-meyer curve is worrying. But it might be due to it \
+being based on survival data whereas we are looking at risk / fast progression?"
+    )
+
+    print("_______________________________________\n\n")
+    print("LogisticRegression:\n")
     clf = LogisticRegression(
         penalty="elasticnet", solver="saga", l1_ratio=1, max_iter=800, C=0.2
     )
     clf = clf.fit(X_scaled, Y)
     show_metrics(clf, X_scaled, Y)
-
-    print("")
-    clf = svm.SVC(C=0.9)
-    clf = clf.fit(X_scaled, Y)
-    show_metrics(clf, X_scaled, Y)
-
-    print("")
-    clf = KNeighborsClassifier(n_neighbors=15)
-    clf = clf.fit(X_scaled, Y)
-    show_metrics(clf, X_scaled, Y)
+    print(
+        "logistic regression with elasticnet and a high l1_ratio \
+shows a good f1 score. Lower precision, But by far the best K-M curve of all."
+    )
 
 
-def show_metrics(clf, X_scaled, Y, clinical_data=None):
-    Y_pred = clf.predict(X_scaled)
+def show_metrics(
+    clf, X, Y, clinical_data=None, time="is_deceased", time_flag="survival_days"
+):
+    """Shows the metrics of a model.
+
+    Args:
+        clf (object): A model.
+        X (np.array): The input data.
+        Y (np.array): The output data.
+        clinical_data (pd.DataFrame): The clinical data.
+        time (str): The time to predict on.
+        time_flag (str): The time flag.
+        
+    """
+    Y_pred = clf.predict(X)
     prec, rec, f1, _ = precision_recall_fscore_support(Y, Y_pred, average="weighted")
-    plot_roc_curve(clf, X_scaled, Y)
+    plot_roc_curve(clf, X, Y)
     plt.show()
-    cross_scores = cross_val_score(clf, X_scaled, Y, cv=100)
+    cross_scores = cross_val_score(clf, X, Y, cv=100)
 
     # showing the kaplan-meier survival curve
     if clinical_data is not None:
         for pred_event in (1, 0):
             mask_treat = Y_pred == pred_event
             time_treatment, survival_prob_treatment = kaplan_meier_estimator(
-                clinical_data["D_OS_FLAG"][mask_treat],
-                clinical_data["D_OS"][mask_treat],
+                clinical_data[time_flag][mask_treat], clinical_data[time][mask_treat],
             )
 
             plt.step(
