@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 from matplotlib import pyplot as plt
 
+from genepy.utils import helper as ghelp
+
 from sklearn import preprocessing
 from sklearn import svm
 from sklearn.metrics import precision_recall_fscore_support, plot_roc_curve
@@ -43,17 +45,13 @@ DEFAULT_FEATURES = [
 ]
 
 
-def main(syn_login, syn_password, predict_on=DEFAULT_FEATURES, pathway_file=MM_PATHWAY):
-    """Main entry point for owkin_mm_dream.
-    
-    Args:
-        syn_login (str): Synapse login.
-        syn_password (str): Synapse password.
-        predict_on (list): List of features to predict on.
-        pathway_file (str): Path to pathway file.
-
-    Returns:
-    """
+def load_process_data(
+    syn_login,
+    syn_password,
+    rna_data="syn9744875",
+    clinical_data="syn9926878",
+    explanation_table="syn9744732",
+):
 
     syn = synapseclient.Synapse()
     syn.login(syn_login, syn_password)
@@ -62,17 +60,21 @@ def main(syn_login, syn_password, predict_on=DEFAULT_FEATURES, pathway_file=MM_P
     # loading the DREAM Challenge MM RNAseq dataset from Synapse
     # dataset analysed with Salmon (reference-free mapper),
     # using hg19 gene annotation annotated with ENTREZ id + ERCC (likely ERCC92) which is the spike-in gene which are not present here
-    syn9744875 = syn.get(entity="syn9744875")
-    syn9744732 = syn.get(entity="syn9744732")
+    rna_data = syn.get(entity=rna_data)
+    explanation_table = syn.get(entity=explanation_table)
     syn9926878 = syn.get(entity="syn9926878")
+
     # loading the RNAseq data from Synapse
-    rna_data = pd.read_csv(syn9744875.path, sep="\t", index_col=0)
+    rna_data = pd.read_csv(rna_data.path, sep="\t", index_col=0)
     clinical_data = pd.read_csv(syn9926878.path, sep=",").set_index("Patient")
-    explanation = pd.read_csv(syn9744732.path, sep=",", index_col=0)
+    explanation_table = pd.read_csv(explanation_table.path, sep=",", index_col=0)
 
-    # showing the explanation of the data
-    explanation.loc[set(clinical_data.columns) & set(explanation.index)]
+    # showing the explanation_table of the data
+    explanation_table.loc[set(clinical_data.columns) & set(explanation_table.index)]
+    print("\nhere is our clinical data: ")
+    print(explanation_table)
 
+    print("the rna data has {} samples".format(len(rna_data.columns)))
     # subsetting columns
     clinical_data = clinical_data.rename(
         columns={**CLINICAL_LABELS, **CLINICAL_FEATURES}
@@ -83,11 +85,6 @@ def main(syn_login, syn_password, predict_on=DEFAULT_FEATURES, pathway_file=MM_P
     ]
     unc_clinical_data = unc_clinical_data[~unc_clinical_data["stage"].isna()]
 
-    to_add = (
-        unc_clinical_data[CLINICAL_FEATURES.values()]
-        .replace({"Female": 1, "Male": 0})
-        .astype(int)
-    )
     # getting GENE symbols
     gene_names = ghelp.generateGeneNames()
     gene_names = gene_names[gene_names.gene_biotype == "protein_coding"].set_index(
@@ -103,7 +100,10 @@ def main(syn_login, syn_password, predict_on=DEFAULT_FEATURES, pathway_file=MM_P
         else gene_names.loc[val].iloc[0]["hgnc_symbol"]
         for val in rna_data.index
     ]
+    return rna_data, unc_clinical_data
 
+
+def make_dataset(rna_data, clinical_data, pathway_file=MM_PATHWAY):
     # sorting to get the latest rnaseq available for a patient. By postulating that the number is equal to the timepoint at sampling
     col = list(rna_data.columns)
     col.sort()
@@ -115,6 +115,12 @@ def main(syn_login, syn_password, predict_on=DEFAULT_FEATURES, pathway_file=MM_P
         loc = rna_data[val].iloc[:, -1]
         rna_data.drop(val, axis=1, inplace=True)
         rna_data[val] = loc.values
+
+    to_add = (
+        clinical_data[CLINICAL_FEATURES.values()]
+        .replace({"Female": 1, "Male": 0})
+        .astype(int)
+    )
 
     # generating the input data
     X = rna_data.T.loc[list(set(clinical_data.index))]
@@ -133,8 +139,29 @@ def main(syn_login, syn_password, predict_on=DEFAULT_FEATURES, pathway_file=MM_P
     for k, val in pathways.items():
         X[k] = X[set(val) & xcol].sum(axis=1)
 
+
+def main(syn_login, syn_password, predict_on=DEFAULT_FEATURES, pathway_file=MM_PATHWAY):
+    """Main entry point for owkin_mm_dream.
+    
+    Args:
+        syn_login (str): Synapse login.
+        syn_password (str): Synapse password.
+        predict_on (list): List of features to predict on.
+        pathway_file (str): Path to pathway file.
+
+    Returns:
+    """
+
+    rna_data, unc_clinical_data = load_process_data(syn_login, syn_password)
+
+    X = make_dataset(rna_data, unc_clinical_data)
+
     # generating the output data
-    Y = clinical_data.replace({"FALSE": 0, "TRUE": 1})["to_pred"].loc[X.index].values
+    Y = (
+        unc_clinical_data.replace({"FALSE": 0, "TRUE": 1})["to_pred"]
+        .loc[X.index]
+        .values
+    )
 
     # scaling the data
     scaler = preprocessing.StandardScaler().fit(X[predict_on].values)
