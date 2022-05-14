@@ -198,7 +198,6 @@ def main(
         .loc[X.index]
         .values
     )
-
     # scaling the data
     scaler = preprocessing.StandardScaler().fit(X[predict_on].values)
     X_scaled = scaler.transform(X[predict_on].values)
