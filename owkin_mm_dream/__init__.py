@@ -203,7 +203,7 @@ def main(
     X_scaled = scaler.transform(X[predict_on].values)
 
     if showcase:
-        show_case(X_scaled, Y, predict_on=predict_on)
+        show_case(X_scaled, Y, predict_on=predict_on, clinical_data=unc_clinical_data)
 
     print("choosing logistic regression as best clf")
 
@@ -214,7 +214,7 @@ def main(
     return clf
 
 
-def show_case(X_scaled, Y, predict_on=DEFAULT_FEATURES):
+def show_case(X_scaled, Y, predict_on=DEFAULT_FEATURES, clinical_data=None):
     # finding the best predictors
     clf = LogisticRegression()
     clf = clf.fit(X_scaled, Y)
@@ -227,7 +227,7 @@ def show_case(X_scaled, Y, predict_on=DEFAULT_FEATURES):
     print("\n\nKNeighborsClassifier:\n")
     clf = KNeighborsClassifier(n_neighbors=15)
     clf = clf.fit(X_scaled, Y)
-    show_metrics(clf, X_scaled, Y)
+    show_metrics(clf, X_scaled, Y, clinical_data=clinical_data)
     print(
         "a KNN with 15 neigbhors shows a lower f1 score overall (CV=100) but a really good AUC. \
 However, this is likely due to overfitting."
@@ -237,7 +237,7 @@ However, this is likely due to overfitting."
     print("svm:\n")
     clf = svm.SVC(C=0.9)
     clf = clf.fit(X_scaled, Y)
-    show_metrics(clf, X_scaled, Y)
+    show_metrics(clf, X_scaled, Y, clinical_data=clinical_data)
     print(
         "\nSVM is able to get a very good precision and in medical applications, \
 this is often what we are looking for: FPs need to be as low as possible. \
@@ -251,7 +251,7 @@ being based on survival data whereas we are looking at risk / fast progression?"
         penalty="elasticnet", solver="saga", l1_ratio=1, max_iter=800, C=0.2
     )
     clf = clf.fit(X_scaled, Y)
-    show_metrics(clf, X_scaled, Y)
+    show_metrics(clf, X_scaled, Y, clinical_data=clinical_data)
     print(
         "logistic regression with elasticnet and a high l1_ratio \
 shows a good f1 score. Lower precision, But by far the best K-M curve of all."
@@ -259,7 +259,7 @@ shows a good f1 score. Lower precision, But by far the best K-M curve of all."
 
 
 def show_metrics(
-    clf, X, Y, clinical_data=None, time="is_deceased", time_flag="survival_days"
+    clf, X, Y, clinical_data=None, time="survival_days", time_flag="is_deceased"
 ):
     """Shows the metrics of a model.
 
@@ -283,7 +283,8 @@ def show_metrics(
         for pred_event in (1, 0):
             mask_treat = Y_pred == pred_event
             time_treatment, survival_prob_treatment = kaplan_meier_estimator(
-                clinical_data[time_flag][mask_treat], clinical_data[time][mask_treat],
+                clinical_data[time_flag][mask_treat].astype(bool),
+                clinical_data[time][mask_treat],
             )
 
             plt.step(
@@ -295,6 +296,7 @@ def show_metrics(
         plt.ylabel("est. probability of survival $\hat{S}(t)$")
         plt.xlabel("time $t$")
         plt.legend(loc="best")
+        plt.show()
     print("precision, recall, f1_score:")
     print(prec, rec, f1)
     print("k-fold CV score:")
