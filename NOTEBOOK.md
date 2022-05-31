@@ -106,3 +106,27 @@ iii) Other pathways [3]: cell cycle pathway, p53 signalling pathway, NF-kB signa
 - it has been shown that count expression data such as what is outputed by RSEM is actually better suited for statistical analysis than TPMs
 - using the term "gender" to talk about a patient's sex is derogative.
 - we are loosing 40% of our data due to missing class labels.
+
+## ideas for next steps:
+
+An ideas would be to train on many other cancer types to identify global mechanisms or patterns of reccurence which could be both at DNA and RNA level.
+
+Also, instead of using just the couple of genes of interest, we could look at their partners in different pathways.
+
+Another idea is on using bette algorithms for time to event predictions, taking in account lost time to events. These would be able to leverage the full information available and judge the differences between patient leaving study close to EVENT_FREE date and those leaving it way before.
+For example, using these values as probability of reaching EVENT_FREE time. and the algorithm's predictions need to match this probability (this could be done with some kind o graphical model)
+
+Another idea would be to do some unsupervised analysis first. using sets of large datasets. Correcting for their batch effects using tools like celligner and then doing some clustering. We would then want to look at clusters of / nearest neighboors to the tumors that are causing relapses. Can we find differentially expressed genes? are they important in predicting relapse?
+
+Biologically, relapse is also defined by the micro environment's state, like immune exhaustion.
+Gathering data and litterature around that would be important.
+
+Moreover we would want to investigate the missclassified samples and look at their expression and mutations compared to correctly classified samples.
+For going further and answering many of these questions, a CCLE like pipeline, to process the data, would be needed.
+
+mechanisms:
+
+Experiments:
+
+Targetting:
+
