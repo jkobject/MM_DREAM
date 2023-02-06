@@ -1,7 +1,7 @@
 # owkin_mm_dream
 
-[![codecov](https://codecov.io/gh/jkobject/owkin_MM_DREAM/branch/main/graph/badge.svg?token=owkin_MM_DREAM_token_here)](https://codecov.io/gh/jkobject/owkin_MM_DREAM)
-[![CI](https://github.com/jkobject/owkin_MM_DREAM/actions/workflows/main.yml/badge.svg)](https://github.com/jkobject/owkin_MM_DREAM/actions/workflows/main.yml)
+[![codecov](https://codecov.io/gh/jkobject/MM_DREAM/branch/main/graph/badge.svg?token=MM_DREAM_token_here)](https://codecov.io/gh/jkobject/MM_DREAM)
+[![CI](https://github.com/jkobject/MM_DREAM/actions/workflows/main.yml/badge.svg)](https://github.com/jkobject/MM_DREAM/actions/workflows/main.yml)
 
 Awesome Cancer recurrence prediction of Multiple Myeloma DREAM challenge v2 created by jkobject.
 
@@ -19,8 +19,8 @@ Information about the literature review, my work schedule and process during thi
 ## Install it
 
 ```bash
-git clone https://github.com/jkobject/owkin_MM_DREAM.git
-cd owkin_MM_DREAM
+git clone https://github.com/jkobject/MM_DREAM.git
+cd MM_DREAM
 pip install -e .
 ```
 
@@ -36,7 +36,7 @@ docker pull jkobject/mm_dream
 
 ```py
 #look at example.py !
-from owkin_mm_dream import main
+from mm_dream import main
 
 clf = main(syn_login, syn_password)
 ```
@@ -44,7 +44,7 @@ clf = main(syn_login, syn_password)
 or
 
 ```bash
-python -m owkin_mm_dream $syn_login $syn_password
+python -m mm_dream $syn_login $syn_password
 #or
 docker run -it jkobject/mm_dream $syn_login $syn_password
 ```
@@ -53,7 +53,7 @@ docker run -it jkobject/mm_dream $syn_login $syn_password
 
 ```py
 #look at example.py for more info!
-from owkin_mm_dream import main
+from mm_dream import main
 
 clf = main(syn_login, syn_password)
 res = clf.predict(X, Y)
@@ -62,11 +62,11 @@ res = clf.predict(X, Y)
 or
 
 ```bash
-python owkin_mm_dream $syn_login $syn_password $rna_path $clinical_path
+python mm_dream $syn_login $syn_password $rna_path $clinical_path
 #or
 docker run -it jkobject/mm_dream $syn_login $syn_password $rna_path $clinical_path
 #extract the file out with cp
-docker cp <containerId>:/app/owkin/owkin_mm_dream  /host/path/target
+docker cp <containerId>:/app/mm_dream  /host/path/target
 ```
 
 the results will be in `new_predictions.csv`
@@ -93,7 +93,7 @@ Lets take a look at the structure of this template:
 ├── Makefile                 # A collection of utilities to manage the project
 ├── MANIFEST.in              # A list of files to include in a package
 ├── mkdocs.yml               # Configuration for documentation site
-├── owkin_mm_dream             # The main python package for the project
+├── mm_dream                 # The main python package for the project
 │   ├── base.py              # The base module for the project
 │   ├── __init__.py          # This tells Python that this is a package
 │   ├── __main__.py          # The entry point for the project
