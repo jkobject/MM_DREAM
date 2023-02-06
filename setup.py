@@ -1,4 +1,4 @@
-"""Python setup.py for owkin_mm_dream package"""
+"""Python setup.py for mm_dream package"""
 import io
 import os
 from setuptools import find_packages, setup
@@ -6,7 +6,7 @@ from setuptools import find_packages, setup
 
 def read(*paths, **kwargs):
     """Read the contents of a text file safely.
-    >>> read("owkin_mm_dream", "VERSION")
+    >>> read("mm_dream", "VERSION")
     '0.1.0'
     >>> read("README.md")
     ...
@@ -30,17 +30,17 @@ def read_requirements(path):
 
 
 setup(
-    name="owkin_mm_dream",
-    version=read("owkin_mm_dream", "VERSION"),
-    description="Awesome owkin_mm_dream created by jkobject",
-    url="https://github.com/jkobject/owkin_MM_DREAM/",
+    name="mm_dream",
+    version=read("mm_dream", "VERSION"),
+    description="Awesome mm_dream created by jkobject",
+    url="https://github.com/jkobject/MM_DREAM/",
     long_description=read("README.md"),
     long_description_content_type="text/markdown",
     author="jkobject",
     packages=find_packages(exclude=["tests", ".github"]),
     install_requires=read_requirements("requirements.txt"),
     entry_points={
-        "console_scripts": ["owkin_mm_dream = owkin_mm_dream.__main__:main"]
+        "console_scripts": ["mm_dream = mm_dream.__main__:main"]
     },
     extras_require={"test": read_requirements("requirements-test.txt")},
 )
