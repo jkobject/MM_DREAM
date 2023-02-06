@@ -26,20 +26,20 @@ install:          ## Install the project in dev mode.
 
 .PHONY: fmt
 fmt:              ## Format code using black & isort.
-	$(ENV_PREFIX)isort owkin_mm_dream/
-	$(ENV_PREFIX)black -l 79 owkin_mm_dream/
+	$(ENV_PREFIX)isort mm_dream/
+	$(ENV_PREFIX)black -l 79 mm_dream/
 	$(ENV_PREFIX)black -l 79 tests/
 
 .PHONY: lint
 lint:             ## Run pep8, black, mypy linters.
-	$(ENV_PREFIX)flake8 owkin_mm_dream/
-	$(ENV_PREFIX)black -l 79 --check owkin_mm_dream/
+	$(ENV_PREFIX)flake8 mm_dream/
+	$(ENV_PREFIX)black -l 79 --check mm_dream/
 	$(ENV_PREFIX)black -l 79 --check tests/
-	$(ENV_PREFIX)mypy --ignore-missing-imports owkin_mm_dream/
+	$(ENV_PREFIX)mypy --ignore-missing-imports mm_dream/
 
 .PHONY: test
 test: lint        ## Run tests and generate coverage report.
-	$(ENV_PREFIX)pytest -v --cov-config .coveragerc --cov=owkin_mm_dream -l --tb=short --maxfail=1 tests/
+	$(ENV_PREFIX)pytest -v --cov-config .coveragerc --cov=mm_dream -l --tb=short --maxfail=1 tests/
 	$(ENV_PREFIX)coverage xml
 	$(ENV_PREFIX)coverage html
 
@@ -78,9 +78,9 @@ virtualenv:       ## Create a virtual environment.
 release:          ## Create a new tag for release.
 	@echo "WARNING: This operation will create s version tag and push to github"
 	@read -p "Version? (provide the next x.y.z semver) : " TAG
-	@echo "$${TAG}" > owkin_mm_dream/VERSION
+	@echo "$${TAG}" > mm_dream/VERSION
 	@$(ENV_PREFIX)gitchangelog > HISTORY.md
-	@git add owkin_mm_dream/VERSION HISTORY.md
+	@git add mm_dream/VERSION HISTORY.md
 	@git commit -m "release: version $${TAG} 🚀"
 	@echo "creating git tag : $${TAG}"
 	@git tag $${TAG}
@@ -101,7 +101,7 @@ switch-to-poetry: ## Switch to poetry package manager.
 	@poetry init --no-interaction --name=a_flask_test --author=rochacbruno
 	@echo "" >> pyproject.toml
 	@echo "[tool.poetry.scripts]" >> pyproject.toml
-	@echo "owkin_mm_dream = 'owkin_mm_dream.__main__:main'" >> pyproject.toml
+	@echo "mm_dream = 'mm_dream.__main__:main'" >> pyproject.toml
 	@cat requirements.txt | while read in; do poetry add --no-interaction "$${in}"; done
 	@cat requirements-test.txt | while read in; do poetry add --no-interaction "$${in}" --dev; done
 	@poetry install --no-interaction
@@ -109,7 +109,7 @@ switch-to-poetry: ## Switch to poetry package manager.
 	@mv requirements* .github/backup
 	@mv setup.py .github/backup
 	@echo "You have switched to https://python-poetry.org/ package manager."
-	@echo "Please run 'poetry shell' or 'poetry run owkin_mm_dream'"
+	@echo "Please run 'poetry shell' or 'poetry run mm_dream'"
 
 .PHONY: init
 init:             ## Initialize the project based on an application template.
